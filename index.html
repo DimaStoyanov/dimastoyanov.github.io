@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Heap. Extract min</title>
+</head>
+<body>
+
+<canvas id="canvas" width="1480" height="650">C A N V A S</canvas>
+<div>
+    <label for="vertexNum">Vertex number: </label><input id="vertexNum" value="8">
+    <button id="generate">Generate</button>
+</div>
+<div>
+    <button id="start">Start visualisation</button>
+</div>
+<script lang="text/javascript">
+    var canvas = document.getElementById("canvas");
+    var ctx = canvas.getContext('2d');
+    var heap = [];
+
+
+    function reset() {
+        ctx.fillStyle = "white";
+        ctx.fillRect(0, 0, canvas.width, canvas.height)
+    }
+
+    function draw() {
+
+        ctx.fillStyle = "black";
+        var circleRadius = 30;
+        var coords = [null, {x: canvas.width / 2, y: 50, left: 0, right: canvas.width}];
+
+
+        function drawCircle(x, y, value) {
+            ctx.beginPath();
+            ctx.arc(x, y, circleRadius, 0, 2 * Math.PI, false);
+            ctx.stroke();
+            ctx.font = "20px Georgia";
+            ctx.fillText((value < 10 ? " " : "") + value, x - 10, y + 8);
+        }
+
+        function drawVertex() {
+
+            drawCircle(coords[1].x, coords[1].y, heap[1]);
+            for (var i = 2; i < heap.length; i++) {
+                var parent = ~~(i / 2);
+                var x, y, left, right;
+                if (parent * 2 === i) {
+                    left = coords[parent].left;
+                    right = coords[parent].x;
+                } else {
+                    left = coords[parent].x;
+                    right = coords[parent].right;
+                }
+                x = (left + right) / 2;
+                y = coords[parent].y + 2 * circleRadius;
+                coords[i] = {x: x, y: y, left: left, right: right};
+                drawCircle(x, y, heap[i]);
+            }
+        }
+
+
+        function drawArrows() {
+
+            function drawArrow(a, b) {
+
+                function distance(a, b) {
+                    return Math.sqrt(Math.pow(a.x - b.x, 2) + Math.pow(a.y - b.y, 2))
+                }
+
+                function getPointOnCircle(a, b) {
+                    var cos = (a.x - b.x) / distance(a, b),
+                        sin = (a.y - b.y) / distance(a, b),
+                        x = a.x - circleRadius * cos,
+                        y = a.y - circleRadius * sin;
+                    return {x: x, y: y}
+                }
+
+                ctx.beginPath();
+                var startPoint = getPointOnCircle(a, b),
+                    endPoint = getPointOnCircle(b, a);
+                ctx.moveTo(startPoint.x, startPoint.y);
+                ctx.lineTo(endPoint.x, endPoint.y);
+                ctx.stroke()
+            }
+
+            for (var i = heap.length - 1; i > 0; i--) {
+                drawArrow(coords[i], coords[~~(i / 2)])
+            }
+        }
+
+        drawVertex();
+        drawArrows()
+    }
+
+    document.getElementById("generate").addEventListener("click", function () {
+        var n = parseInt(document.getElementById("vertexNum").value);
+
+        function nextInt() {
+            return (Math.random() * 100 | 0) + 1
+        }
+
+        heap = [];
+        for (var i = 0; i <= n; i++) {
+            heap[i] = nextInt();
+        }
+        heap.sort(function (a, b) {
+            return a - b
+        });
+        reset();
+        draw();
+    });
+
+    document.getElementById("start").addEventListener("click", function () {
+
+    });
+
+    var n = parseInt(document.getElementById("vertexNum").value);
+    for (var j = 0; j < n; j++) heap[j] = j;
+    draw(heap)
+
+
+</script>
+</body>
+</html>
