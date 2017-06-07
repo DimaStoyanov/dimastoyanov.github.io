@@ -30,6 +30,8 @@
     // Radius of vertex in heap
     var circleRadius = 30;
 
+    var startedExtract = false;
+
 
     // clear canvas
     function reset() {
@@ -191,8 +193,9 @@
 
     // Start visualization
     document.getElementById("start").addEventListener("click", function () {
+        if (startedExtract) return;
 
-
+        startedExtract = true;
         var moving = false;
         var order = [];
         var dateStopped = Date.now() - 500;
@@ -241,7 +244,7 @@
                 if (!moving && order.length !== 0 && Date.now() - dateStopped >= 500) {
                     var indices = order.shift();
                     swapVertices(indices.i, indices.j, !isNeighbours(indices.i, indices.j));
-                }
+                } else if (order.length === 0) startedExtract = false;
             })
         }
 
