@@ -240,12 +240,18 @@
         // However calculating of sift dawn process is much faster then visualization
         // this function will wait the end of current animation, wait 0.5 sec and start next animation
         function processOrder() {
-            setInterval(function () {
-                if (!moving && order.length !== 0 && Date.now() - dateStopped >= 500) {
-                    var indices = order.shift();
-                    swapVertices(indices.i, indices.j, !isNeighbours(indices.i, indices.j));
-                } else if (order.length === 0) startedExtract = false;
-            })
+            var timer = setInterval(function () {
+                    if (!moving && Date.now() - dateStopped >= 500) {
+                        if (order.length !== 0) {
+                            var indices = order.shift();
+                            swapVertices(indices.i, indices.j, !isNeighbours(indices.i, indices.j));
+                        } else {
+                            startedExtract = false;
+                            clearInterval(timer);
+                        }
+                    }
+                }
+            )
         }
 
         processOrder();
