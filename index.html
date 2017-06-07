@@ -6,9 +6,10 @@
 </head>
 <body>
 
-<canvas id="canvas" width="1480" height="650">C A N V A S</canvas>
+<canvas id="canvas" width="1024" height="600">C A N V A S</canvas>
+<canvas id="minvalue" width="1024" height="100">lmao</canvas>
 <div>
-    <label for="vertexNum">Vertex number: </label><input id="vertexNum" value="8">
+    <label for="vertexNum">Vertex number: </label><input id="vertexNum" value="31">
     <button id="generate">Generate</button>
 </div>
 <div>
@@ -16,33 +17,90 @@
 </div>
 <script lang="text/javascript">
     var canvas = document.getElementById("canvas");
+    var text = document.getElementById("minvalue");
+    var textCtx = text.getContext('2d');
     var ctx = canvas.getContext('2d');
+
+    // Array of values, that heap contains
     var heap = [];
+    // Array of coordinates of vertex in heap
+    var coords = [];
+    // Index of elements, that now are swapping (need for animation)
+    var swapped = [];
+    // Radius of vertex in heap
+    var circleRadius = 30;
 
 
+    // clear canvas
     function reset() {
         ctx.fillStyle = "white";
-        ctx.fillRect(0, 0, canvas.width, canvas.height)
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
     }
 
-    function draw() {
 
+    function swap(a, i, j) {
+        var temp = a[i];
+        a[i] = a[j];
+        a[j] = temp;
+    }
+
+    // Check if first index can be father of second and contrariwise
+    function isNeighbours(i, j) {
+        return (~~(i / 2) === j) || (~~(j / 2) === i);
+    }
+
+    // Calculate distance between two point
+    function distance(a, b) {
+        return Math.sqrt(Math.pow(a.x - b.x, 2) + Math.pow(a.y - b.y, 2))
+    }
+
+    // Calculates the coordinates of a point on a circle
+    // from which you want to draw an edge to another vertex
+    function getPointOnCircle(a, b, p) {
+
+        p = p | 1;
+        var cos = (a.x - b.x) / distance(a, b),
+            sin = (a.y - b.y) / distance(a, b),
+            x = a.x - circleRadius * cos * p,
+            y = a.y - circleRadius * sin * p;
+        return {x: x, y: y}
+    }
+
+    // Main function, that draw heap
+    function draw(animate) {
         ctx.fillStyle = "black";
-        var circleRadius = 30;
-        var coords = [null, {x: canvas.width / 2, y: 50, left: 0, right: canvas.width}];
+        ctx.font = "20px Georgia";
 
+        // Draw vertex with/within border
+        function drawCircle(x, y, value, border) {
+            border = border | 0;
 
-        function drawCircle(x, y, value) {
+            ctx.strokeStyle = "blue";
+            ctx.beginPath();
+            ctx.arc(x, y, circleRadius + border, 0, 2 * Math.PI, false);
+            ctx.stroke();
+
+            ctx.strokeStyle = "black";
             ctx.beginPath();
             ctx.arc(x, y, circleRadius, 0, 2 * Math.PI, false);
             ctx.stroke();
-            ctx.font = "20px Georgia";
+
             ctx.fillText((value < 10 ? " " : "") + value, x - 10, y + 8);
         }
 
-        function drawVertex() {
-
+        /** For the 1st draw we need to calculate coordinates of vertices
+         *  We will arrange the vertices as follows.
+         *  The coordinates Y are considered trivial - each new heap level increases
+         *  the value of Y by a constant value.
+         *  If the current vertex is the left son,
+         *  then the X coordinate will be in the middle
+         *  between the left border and the X value of the parent.
+         *  Otherwise, in the middle between the value of X and the right border of the parent.
+         **/
+        function calculateAndDrawVertex() {
+            coords = [null, {x: canvas.width / 2, y: 50, left: 0, right: canvas.width}];
             drawCircle(coords[1].x, coords[1].y, heap[1]);
+
             for (var i = 2; i < heap.length; i++) {
                 var parent = ~~(i / 2);
                 var x, y, left, right;
@@ -60,22 +118,18 @@
             }
         }
 
+        // If we redraw canvas, coordinates have already been calculated
+        function drawVertex() {
+            for (var i = 1; i < heap.length; i++) {
+                drawCircle(coords[i].x, coords[i].y, heap[i], swapped.indexOf(i) === -1 ? 0 : 5)
+            }
+        }
 
+        // Draw all edges in heap
         function drawArrows() {
 
             function drawArrow(a, b) {
 
-                function distance(a, b) {
-                    return Math.sqrt(Math.pow(a.x - b.x, 2) + Math.pow(a.y - b.y, 2))
-                }
-
-                function getPointOnCircle(a, b) {
-                    var cos = (a.x - b.x) / distance(a, b),
-                        sin = (a.y - b.y) / distance(a, b),
-                        x = a.x - circleRadius * cos,
-                        y = a.y - circleRadius * sin;
-                    return {x: x, y: y}
-                }
 
                 ctx.beginPath();
                 var startPoint = getPointOnCircle(a, b),
@@ -85,41 +139,149 @@
                 ctx.stroke()
             }
 
+            // Here are a few conditions for the edges to swap at the beginning of the animation
             for (var i = heap.length - 1; i > 0; i--) {
-                drawArrow(coords[i], coords[~~(i / 2)])
+                var parent = ~~(i / 2);
+                if (swapped.length === 0 || isNeighbours(swapped[0], swapped[1])) {
+                    // Conditions for classic sift dawn
+                    if (swapped.indexOf(i) === -1 && swapped.indexOf(parent) !== -1)
+                        parent = parent === swapped[0] ? swapped[1] : swapped[0];
+                } else {
+                    // Conditions for swapping  not adjacent vertices
+                    if (i === 1) {
+                        parent = swapped[0] === i ? swapped[1] : swapped[0];
+                    } else {
+                        parent = parent === swapped[0] ?
+                            swapped[1] : parent === swapped[1] ? swapped[0] : parent;
+                    }
+                }
+                drawArrow(coords[i], coords[parent])
             }
         }
 
-        drawVertex();
-        drawArrows()
+        if (!animate) calculateAndDrawVertex(); else  drawVertex();
+        drawArrows();
+
     }
 
-    document.getElementById("generate").addEventListener("click", function () {
+    function redraw(animate) {
+        reset();
+        draw(animate)
+    }
+
+
+    // Generate random heap
+    function generate() {
         var n = parseInt(document.getElementById("vertexNum").value);
 
         function nextInt() {
-            return (Math.random() * 100 | 0) + 1
+            return (Math.random() * 10 | 0) + 1
         }
 
-        heap = [];
-        for (var i = 0; i <= n; i++) {
-            heap[i] = nextInt();
+        heap = [null];
+        for (var i = 1; i <= n; i++) {
+            heap[i] = heap[~~(i / 2)] + nextInt();
         }
-        heap.sort(function (a, b) {
-            return a - b
-        });
-        reset();
-        draw();
+        redraw(false)
+    }
+
+    document.getElementById("generate").addEventListener("click", function () {
+        generate()
     });
 
+    // Start visualization
     document.getElementById("start").addEventListener("click", function () {
 
+
+        var moving = false;
+        var order = [];
+        var dateStopped = Date.now() - 500;
+
+        // Animate swap of vertices
+        function swapVertices(i, j, deleteV) {
+            var p1 = {x: coords[i].x, y: coords[i].y};
+            var p2 = {x: coords[j].x, y: coords[j].y};
+            var deltaX = (p2.x - p1.x) / 30;
+            var deltaY = (p2.y - p1.y) / 30;
+            moving = true;
+            swapped = [i, j];
+
+            var timer = setInterval(function () {
+                if (distance(coords[i], p2) < 5) {
+                    coords[i] = p1;
+                    coords[j] = p2;
+                    swap(heap, i, j);
+                    swapped = [];
+                    if (deleteV) {
+                        textCtx.fillStyle = "white";
+                        textCtx.fillRect(0, 0, text.width, text.height);
+                        textCtx.font = "20px Georgia";
+                        textCtx.fillStyle = "black";
+                        textCtx.fillText("Extracted value: " + heap.pop(), canvas.width / 2, 50);
+                        coords.pop();
+                    }
+                    moving = false;
+                    dateStopped = Date.now();
+                    clearInterval(timer)
+                } else {
+                    //At each step, we increase the coordinates by a uniform value for smooth animation
+                    coords[i].x += deltaX;
+                    coords[i].y += deltaY;
+                    coords[j].x -= deltaX;
+                    coords[j].y -= deltaY;
+                }
+                redraw(true)
+            }, 50)
+        }
+
+        // However calculating of sift dawn process is much faster then visualization
+        // this function will wait the end of current animation, wait 0.5 sec and start next animation
+        function processOrder() {
+            setInterval(function () {
+                if (!moving && order.length !== 0 && Date.now() - dateStopped >= 500) {
+                    var indices = order.shift();
+                    swapVertices(indices.i, indices.j, !isNeighbours(indices.i, indices.j));
+                }
+            })
+        }
+
+        processOrder();
+
+
+        // Extract minimum value from heap and restores heap properties. O(log n)
+        function siftDawn() {
+            var i = 1;
+            // Value in original array "heap" swapped in the end of animation
+            // so we need copy of heap array, to swap without waiting
+            var H = heap.slice(0);
+            // Swap first and last element in heap and delete last
+            swap(H, 1, H.length - 1);
+            H.pop();
+            // Visualize it
+            order.push({i: i, j: heap.length - 1});
+
+            while (i < H.length) {
+                // If left son exist and him value lower then current, swap this elements
+                if (i * 2 < H.length && H[i * 2] < H[i]) {
+                    order.push({i: i, j: i * 2});
+                    swap(H, i, i * 2);
+                    i *= 2;
+                    // If right son exist and him value lower then current, swap this elements
+                } else if (i * 2 + 1 < H.length && H[i * 2 + 1] < H[i]) {
+                    order.push({i: i, j: i * 2 + 1});
+                    swap(H, i, i * 2 + 1);
+                    i = i * 2 + 1;
+                    // Otherwise, heap is balanced
+                } else break;
+            }
+        }
+
+        processOrder();
+        siftDawn();
+
     });
 
-    var n = parseInt(document.getElementById("vertexNum").value);
-    for (var j = 0; j < n; j++) heap[j] = j;
-    draw(heap)
-
+    generate()
 
 </script>
 </body>
