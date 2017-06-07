@@ -145,7 +145,7 @@
             for (var i = heap.length - 1; i > 0; i--) {
                 var parent = ~~(i / 2);
                 if (swapped.length === 0 || isNeighbours(swapped[0], swapped[1])) {
-                    // Conditions for classic sift dawn
+                    // Conditions for classic sift down
                     if (swapped.indexOf(i) === -1 && swapped.indexOf(parent) !== -1)
                         parent = parent === swapped[0] ? swapped[1] : swapped[0];
                 } else {
@@ -237,14 +237,14 @@
             }, 50)
         }
 
-        // However calculating of sift dawn process is much faster then visualization
+        // However calculating of sift down process is much faster then visualization
         // this function will wait the end of current animation, wait 0.5 sec and start next animation
         function processOrder() {
             var timer = setInterval(function () {
                     if (!moving && Date.now() - dateStopped >= 500) {
                         if (order.length !== 0) {
                             var indices = order.shift();
-                            swapVertices(indices.i, indices.j, !isNeighbours(indices.i, indices.j));
+                            swapVertices(indices.i, indices.j, indices.deleteV);
                         } else {
                             startedExtract = false;
                             clearInterval(timer);
@@ -258,25 +258,27 @@
 
 
         // Extract minimum value from heap and restores heap properties. O(log n)
-        function siftDawn() {
+        function siftDown() {
             var i = 1;
             // Value in original array "heap" swapped in the end of animation
             // so we need copy of heap array, to swap without waiting
             var H = heap.slice(0);
+            alert(H);
             // Swap first and last element in heap and delete last
             swap(H, 1, H.length - 1);
             H.pop();
             // Visualize it
-            order.push({i: i, j: heap.length - 1});
+            order.push({i: i, j: heap.length - 1, deleteV: true});
 
             while (i < H.length) {
                 // If both sons are exist
                 if (i * 2 + 1 < H.length) {
                     // And al least one son is lower then current vertex
-                    if (H[i] > H[i * 2] || H[i] > [i * 2 + 1]) {
+                    if (H[i] > Math.min(H[i * 2], H[i * 2 + 1])) {
                         // Swap with min son
                         var index = H[i * 2] < H[i * 2 + 1] ? i * 2 : i * 2 + 1;
-                        order.push({i: i, j: index});
+                        order.push({i: i, j: index, deleteV: false});
+                        swap(H, i, index);
                         i = index;
                         // otherwise heap properties are restored
                     } else break;
@@ -293,7 +295,7 @@
         }
 
         processOrder();
-        siftDawn();
+        siftDown();
 
     });
 
