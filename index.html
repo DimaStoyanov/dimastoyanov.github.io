@@ -20,12 +20,17 @@
 
 </div>
 <script lang="text/javascript">
+    // Main canvas, where heap is drawn
     var canvas = document.getElementById("canvas");
     var ctx = canvas.getContext('2d');
+    // Canvas for text "Extracted values..."
     var text = document.getElementById("minvalue");
     var textCtx = text.getContext('2d');
+    // Canvas for map legend
     var legend = document.getElementById("legend");
     var legendCtx = legend.getContext('2d');
+    // Button that start visualisation
+    var startButton = document.getElementById("start");
     textCtx.font = "30px Georgia";
     legendCtx.font = "20px Arial";
 
@@ -38,10 +43,11 @@
     var swapped = [];
     // Radius of vertex in heap
     var circleRadius = 30;
-
+    // True after pressing at button "Start visualisation" and before the end of animation
     var startedExtract = false;
+    // List of extracted values from current heap
     var extractedValues = [];
-    var startButton = document.getElementById("start");
+    // True if there are some animation right now
     var moving = false;
 
 
@@ -114,6 +120,7 @@
          *  Otherwise, in the middle between the value of X and the right border of the parent.
          **/
         function calculateAndDrawVertex() {
+            // The heap is more convenient to fill with the 1st index
             coords = [null, {x: canvas.width / 2, y: 50, left: 0, right: canvas.width}];
             drawCircle(ctx, coords[1].x, coords[1].y, heap[1], "yellow");
 
@@ -211,6 +218,9 @@
 
     // Generate random heap
     function generate() {
+        // N should be natural number from 1 to 31
+        // Heap with size bigger than 31 is hard to represent
+        // Because then it is necessary to reduce the radius of the circles and it will become unreadable
         var n = Math.abs(parseInt(document.getElementById("vertexNum").value));
         if (isNaN(n) || n > 31 || n === 0) {
             n = 31;
@@ -227,6 +237,9 @@
         redraw(false)
     }
 
+    // If right now occurs some animation
+    // Finish it immediately by nextStep
+    // And set flag finished, which affects the operation of function processOrder
     function finishVisualisation() {
         if (!startedExtract) return;
         if (moving) {
@@ -240,6 +253,8 @@
         } else finished = true;
     }
 
+    // If right now occurs animation, finish it immediately
+    // and draw new heap
     document.getElementById("generate").addEventListener("click", function () {
         if (startedExtract) {
             finishVisualisation();
@@ -272,6 +287,7 @@
             paused = true;
             return;
         }
+        // To avoid errors
         if (heap.length === 1) return;
 
         startedExtract = true;
