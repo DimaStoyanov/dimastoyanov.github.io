@@ -7,7 +7,7 @@
 <body>
 
 <canvas id="canvas" width="1024" height="400">C A N V A S</canvas>
-<canvas id="legend" width="1024" height="200">legend</canvas>
+<canvas id="legend" width="1024" height="120">legend</canvas>
 <canvas id="minvalue" width="1024" height="100">lmao</canvas>
 <div>
     <label for="vertexNum">Vertex number: </label><input id="vertexNum" value="31">
@@ -15,6 +15,9 @@
 </div>
 <div>
     <button id="start">Start visualisation</button>
+    <button id="nextStep">Next step</button>
+    <button id="finish">Finish visualisation</button>
+
 </div>
 <script lang="text/javascript">
     var canvas = document.getElementById("canvas");
@@ -38,6 +41,7 @@
 
     var startedExtract = false;
     var extractedValues = [];
+    var startButton = document.getElementById("start");
 
 
     function clearCanvas(ctx, canvas) {
@@ -206,8 +210,11 @@
 
     // Generate random heap
     function generate() {
-        var n = parseInt(document.getElementById("vertexNum").value);
-
+        var n = Math.abs(parseInt(document.getElementById("vertexNum").value));
+        if (isNaN(n) || n > 31 || n === 0) {
+            n = 31;
+        }
+        document.getElementById("vertexNum").value = n;
         function nextInt() {
             return Math.random() * 10 | 0
         }
@@ -219,15 +226,56 @@
         redraw(false)
     }
 
+    function finishVisualisation() {
+        if (!startedExtract) return;
+        if (!paused) {
+
+            nextStep = true;
+            var timer = setInterval(function () {
+                if (!nextStep) {
+                    finished = true;
+                    clearInterval(timer);
+                }
+            }, 50);
+        } else finished = true;
+    }
+
     document.getElementById("generate").addEventListener("click", function () {
-        generate()
+        if (startedExtract) {
+            finishVisualisation();
+            var timer = setInterval(function () {
+                if (!startedExtract) {
+                    extractedValues = [];
+                    clearInterval(timer);
+                    generate()
+                }
+            }, 50)
+        } else {
+            extractedValues = [];
+            generate();
+        }
     });
 
+
+    var paused = false,
+        nextStep = false,
+        finished = false;
     // Start visualization
-    document.getElementById("start").addEventListener("click", function () {
-        if (startedExtract) return;
+    startButton.addEventListener("click", function () {
+        if (paused) {
+            startButton.firstChild.data = "Pause";
+            paused = false;
+            return
+        }
+        if (startedExtract) {
+            startButton.firstChild.data = "Resume";
+            paused = true;
+            return;
+        }
+        if (heap.length === 1) return;
 
         startedExtract = true;
+        startButton.firstChild.data = "Pause";
         var moving = false;
         var order = [];
         var dateStopped = Date.now() - 500;
@@ -242,7 +290,8 @@
             swapped = [i, j];
 
             var timer = setInterval(function () {
-                if (distance(coords[i], p2) < 5) {
+                if (distance(coords[i], p2) < 5 || nextStep) {
+                    nextStep = false;
                     coords[i] = p1;
                     coords[j] = p2;
                     swap(heap, i, j);
@@ -272,12 +321,23 @@
         // this function will wait the end of current animation, wait 0.5 sec and start next animation
         function processOrder() {
             var timer = setInterval(function () {
-                    if (!moving && Date.now() - dateStopped >= 500) {
+                if (finished) {
+                    paused = false;
+                    finished = false;
+                    for (var i = 0; i < order.length; i++) {
+                        swap(heap, order[i].i, order[i].j);
+                    }
+                    order = [];
+                    redraw(true);
+                }
+                if (paused && nextStep || (!moving && !paused && Date.now() - dateStopped >= 500)) {
+                    nextStep = false;
                         if (order.length !== 0) {
                             var indices = order.shift();
                             swapVertices(indices.i, indices.j, indices.deleteV);
                         } else {
                             startedExtract = false;
+                            startButton.firstChild.data = "Start visualisation";
                             clearInterval(timer);
                         }
                     }
@@ -328,6 +388,15 @@
         processOrder();
         siftDown();
 
+    });
+
+    document.getElementById("nextStep").addEventListener("click", function () {
+        nextStep = true;
+    });
+
+
+    document.getElementById("finish").addEventListener("click", function () {
+        finishVisualisation();
     });
 
     generate()
