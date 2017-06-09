@@ -6,7 +6,8 @@
 </head>
 <body>
 
-<canvas id="canvas" width="1024" height="600">C A N V A S</canvas>
+<canvas id="canvas" width="1024" height="400">C A N V A S</canvas>
+<canvas id="legend" width="1024" height="200">legend</canvas>
 <canvas id="minvalue" width="1024" height="100">lmao</canvas>
 <div>
     <label for="vertexNum">Vertex number: </label><input id="vertexNum" value="31">
@@ -17,9 +18,14 @@
 </div>
 <script lang="text/javascript">
     var canvas = document.getElementById("canvas");
+    var ctx = canvas.getContext('2d');
     var text = document.getElementById("minvalue");
     var textCtx = text.getContext('2d');
-    var ctx = canvas.getContext('2d');
+    var legend = document.getElementById("legend");
+    var legendCtx = legend.getContext('2d');
+    textCtx.font = "30px Georgia";
+    legendCtx.font = "20px Arial";
+
 
     // Array of values, that heap contains
     var heap = [];
@@ -31,10 +37,10 @@
     var circleRadius = 30;
 
     var startedExtract = false;
+    var extractedValues = [];
 
 
-    // clear canvas
-    function reset() {
+    function clearCanvas(ctx, canvas) {
         ctx.fillStyle = "white";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
     }
@@ -58,13 +64,11 @@
 
     // Calculates the coordinates of a point on a circle
     // from which you want to draw an edge to another vertex
-    function getPointOnCircle(a, b, p) {
-
-        p = p | 1;
+    function getPointOnCircle(a, b, dist) {
         var cos = (a.x - b.x) / distance(a, b),
             sin = (a.y - b.y) / distance(a, b),
-            x = a.x - circleRadius * cos * p,
-            y = a.y - circleRadius * sin * p;
+            x = a.x - dist * cos,
+            y = a.y - dist * sin;
         return {x: x, y: y}
     }
 
@@ -74,7 +78,7 @@
         ctx.font = "20px Georgia";
 
         // Draw vertex with/within border
-        function drawCircle(x, y, value, border) {
+        function drawCircle(ctx, x, y, value, color, border) {
             border = border | 0;
 
             ctx.strokeStyle = "blue";
@@ -82,12 +86,17 @@
             ctx.arc(x, y, circleRadius + border, 0, 2 * Math.PI, false);
             ctx.stroke();
 
-            ctx.strokeStyle = "black";
+            ctx.fillStyle = color;
             ctx.beginPath();
             ctx.arc(x, y, circleRadius, 0, 2 * Math.PI, false);
-            ctx.stroke();
+            ctx.fill();
 
+            ctx.fillStyle = "black";
             ctx.fillText((value < 10 ? " " : "") + value, x - 10, y + 8);
+        }
+
+        function getColor(son, parent) {
+            return parent === null ? "yellow" : son > parent ? "#98FB98" : son === parent ? "yellow" : "red"
         }
 
         /** For the 1st draw we need to calculate coordinates of vertices
@@ -101,7 +110,7 @@
          **/
         function calculateAndDrawVertex() {
             coords = [null, {x: canvas.width / 2, y: 50, left: 0, right: canvas.width}];
-            drawCircle(coords[1].x, coords[1].y, heap[1]);
+            drawCircle(ctx, coords[1].x, coords[1].y, heap[1], "yellow");
 
             for (var i = 2; i < heap.length; i++) {
                 var parent = ~~(i / 2);
@@ -116,14 +125,15 @@
                 x = (left + right) / 2;
                 y = coords[parent].y + 2 * circleRadius;
                 coords[i] = {x: x, y: y, left: left, right: right};
-                drawCircle(x, y, heap[i]);
+                drawCircle(ctx, x, y, heap[i], getColor(heap[i], heap[parent]));
             }
         }
 
         // If we redraw canvas, coordinates have already been calculated
         function drawVertex() {
             for (var i = 1; i < heap.length; i++) {
-                drawCircle(coords[i].x, coords[i].y, heap[i], swapped.indexOf(i) === -1 ? 0 : 5)
+                drawCircle(ctx, coords[i].x, coords[i].y, heap[i], getColor(heap[i], heap[~~(i / 2)]),
+                    swapped.indexOf(i) === -1 ? 0 : 5)
             }
         }
 
@@ -134,15 +144,15 @@
 
 
                 ctx.beginPath();
-                var startPoint = getPointOnCircle(a, b),
-                    endPoint = getPointOnCircle(b, a);
+                var startPoint = getPointOnCircle(a, b, circleRadius),
+                    endPoint = getPointOnCircle(b, a, circleRadius);
                 ctx.moveTo(startPoint.x, startPoint.y);
                 ctx.lineTo(endPoint.x, endPoint.y);
                 ctx.stroke()
             }
 
             // Here are a few conditions for the edges to swap at the beginning of the animation
-            for (var i = heap.length - 1; i > 0; i--) {
+            for (var i = heap.length - 1; i > 1; i--) {
                 var parent = ~~(i / 2);
                 if (swapped.length === 0 || isNeighbours(swapped[0], swapped[1])) {
                     // Conditions for classic sift down
@@ -157,17 +167,39 @@
                             swapped[1] : parent === swapped[1] ? swapped[0] : parent;
                     }
                 }
-                drawArrow(coords[i], coords[parent])
+                drawArrow(coords[i], coords[parent]);
             }
         }
 
+        function drawScheme() {
+            clearCanvas(legendCtx, legend);
+            legendCtx.fillStyle = "black";
+            legendCtx.fillText("Explanatory notes: ", 0, 50);
+
+
+            drawCircle(legendCtx, 270, 35, "", "#98FB98");
+            legendCtx.fillText("If current vertex is greater", 170, 90);
+            legendCtx.fillText("than parent vertex", 170, 110);
+
+            drawCircle(legendCtx, 550, 35, "", "yellow");
+            legendCtx.fillText("If current vertex is equal", 450, 90);
+            legendCtx.fillText("to parent vertex", 450, 110);
+
+            drawCircle(legendCtx, 800, 35, "", "red");
+            legendCtx.fillText("If current vertex is lower", 700, 90);
+            legendCtx.fillText("than parent vertex", 700, 110);
+
+
+        }
+
+
         if (!animate) calculateAndDrawVertex(); else  drawVertex();
         drawArrows();
-
+        drawScheme();
     }
 
     function redraw(animate) {
-        reset();
+        clearCanvas(ctx, canvas);
         draw(animate)
     }
 
@@ -177,7 +209,7 @@
         var n = parseInt(document.getElementById("vertexNum").value);
 
         function nextInt() {
-            return (Math.random() * 10 | 0) + 1
+            return Math.random() * 10 | 0
         }
 
         heap = [null];
@@ -216,11 +248,10 @@
                     swap(heap, i, j);
                     swapped = [];
                     if (deleteV) {
-                        textCtx.fillStyle = "white";
-                        textCtx.fillRect(0, 0, text.width, text.height);
-                        textCtx.font = "20px Georgia";
+                        clearCanvas(textCtx, text);
                         textCtx.fillStyle = "black";
-                        textCtx.fillText("Extracted value: " + heap.pop(), canvas.width / 2, 50);
+                        extractedValues.push(heap.pop());
+                        textCtx.fillText("Extracted values: " + extractedValues, canvas.width / 2, 50);
                         coords.pop();
                     }
                     moving = false;
