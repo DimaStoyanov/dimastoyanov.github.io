@@ -42,6 +42,7 @@
     var startedExtract = false;
     var extractedValues = [];
     var startButton = document.getElementById("start");
+    var moving = false;
 
 
     function clearCanvas(ctx, canvas) {
@@ -228,8 +229,7 @@
 
     function finishVisualisation() {
         if (!startedExtract) return;
-        if (!paused) {
-
+        if (moving) {
             nextStep = true;
             var timer = setInterval(function () {
                 if (!nextStep) {
@@ -263,20 +263,19 @@
     // Start visualization
     startButton.addEventListener("click", function () {
         if (paused) {
-            startButton.firstChild.data = "Pause";
+            startButton.firstChild.data = "Pause visualisation";
             paused = false;
             return
         }
         if (startedExtract) {
-            startButton.firstChild.data = "Resume";
+            startButton.firstChild.data = "Resume visualisation";
             paused = true;
             return;
         }
         if (heap.length === 1) return;
 
         startedExtract = true;
-        startButton.firstChild.data = "Pause";
-        var moving = false;
+        startButton.firstChild.data = "Pause visualisation";
         var order = [];
         var dateStopped = Date.now() - 500;
 
@@ -324,13 +323,14 @@
                 if (finished) {
                     paused = false;
                     finished = false;
+                    startedExtract = false;
                     for (var i = 0; i < order.length; i++) {
                         swap(heap, order[i].i, order[i].j);
                     }
                     order = [];
                     redraw(true);
                 }
-                if (paused && nextStep || (!moving && !paused && Date.now() - dateStopped >= 500)) {
+                if (!moving && paused && nextStep || (!moving && !paused && Date.now() - dateStopped >= 500)) {
                     nextStep = false;
                         if (order.length !== 0) {
                             var indices = order.shift();
