@@ -1,25 +1,48 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" xmlns="http://www.w3.org/1999/html">
 <head>
     <meta charset="UTF-8">
     <title>Heap. Extract min</title>
 </head>
 <body>
+<div style="text-align: center;"><h1>Visualizer extracting the most priority element from the binary heap</h1></div>
 
-<canvas id="canvas" width="1024" height="400">C A N V A S</canvas>
-<canvas id="legend" width="1024" height="120">legend</canvas>
-<canvas id="minvalue" width="1024" height="100">lmao</canvas>
+<details>
+    <summary><b>About algorithm </b></summary>
+    <ol type="1">
+        <li>Swap first and last element of the heap</li>
+        <li>Delete last element from heap</li>
+        <li>
+            Run the sift down process from vertex 1
+            <ul>
+                <li>Calculate the min value from left and right son</li>
+                <li>If value in current vertex(from which function is launched) bigger than min of sons,<br/>
+                    swap these values and run function sift down from the lowest son
+                </li>
+                <li>Otherwise heap is balanced</li>
+            </ul>
+        </li>
+    </ol>
+</details>
+<canvas id="canvas" width="1280" height="400">C A N V A S</canvas>
+<canvas id="legend" width="1280" height="120">legend</canvas>
+<canvas id="minvalue" width="1280" height="100">sorted array</canvas>
 <div>
     <label for="vertexNum">Vertex number: </label><input id="vertexNum" value="31">
     <button id="generate">Generate</button>
 </div>
 <div>
     <button id="start">Start visualisation</button>
+    <label> Animation speed:
+        <input id="speed" type="range" min="20" max="200" value="100">
+    </label>
     <button id="nextStep">Next step</button>
     <button id="finish">Finish visualisation</button>
 
 </div>
+</body>
 <script lang="text/javascript">
+
     // Main canvas, where heap is drawn
     var canvas = document.getElementById("canvas");
     var ctx = canvas.getContext('2d');
@@ -31,9 +54,14 @@
     var legendCtx = legend.getContext('2d');
     // Button that start visualisation
     var startButton = document.getElementById("start");
-    textCtx.font = "30px Georgia";
+    textCtx.font = "20px Georgia";
     legendCtx.font = "20px Arial";
+    var speed = document.getElementById("speed");
 
+
+    var updateFrequency = 20;
+    var parts = 100;
+    var epsilon = 10;
 
     // Array of values, that heap contains
     var heap = [];
@@ -204,7 +232,6 @@
 
         }
 
-
         if (!animate) calculateAndDrawVertex(); else  drawVertex();
         drawArrows();
         drawScheme();
@@ -234,6 +261,7 @@
         for (var i = 1; i <= n; i++) {
             heap[i] = heap[~~(i / 2)] + nextInt();
         }
+        clearCanvas(textCtx, text);
         redraw(false)
     }
 
@@ -249,7 +277,7 @@
                     finished = true;
                     clearInterval(timer);
                 }
-            }, 50);
+            }, updateFrequency);
         } else finished = true;
     }
 
@@ -264,7 +292,7 @@
                     clearInterval(timer);
                     generate()
                 }
-            }, 50)
+            }, updateFrequency)
         } else {
             extractedValues = [];
             generate();
@@ -299,14 +327,18 @@
         function swapVertices(i, j, deleteV) {
             var p1 = {x: coords[i].x, y: coords[i].y};
             var p2 = {x: coords[j].x, y: coords[j].y};
-            var deltaX = (p2.x - p1.x) / 30;
-            var deltaY = (p2.y - p1.y) / 30;
+            var deltaX = (p2.x - p1.x) / parts;
+            var deltaY = (p2.y - p1.y) / parts;
             moving = true;
             swapped = [i, j];
 
             var timer = setInterval(function () {
-                if (distance(coords[i], p2) < 5 || nextStep) {
-                    nextStep = false;
+                if (distance(coords[i], p2) < epsilon) {
+                    if (nextStep) {
+                        nextStep = false;
+                        paused = true;
+                        startButton.firstChild.data = "Resume visualisation";
+                    }
                     coords[i] = p1;
                     coords[j] = p2;
                     swap(heap, i, j);
@@ -315,7 +347,7 @@
                         clearCanvas(textCtx, text);
                         textCtx.fillStyle = "black";
                         extractedValues.push(heap.pop());
-                        textCtx.fillText("Extracted values: " + extractedValues, canvas.width / 2, 50);
+                        textCtx.fillText("Extracted values: " + extractedValues, 0, 50);
                         coords.pop();
                     }
                     moving = false;
@@ -323,13 +355,13 @@
                     clearInterval(timer)
                 } else {
                     //At each step, we increase the coordinates by a uniform value for smooth animation
-                    coords[i].x += deltaX;
-                    coords[i].y += deltaY;
-                    coords[j].x -= deltaX;
-                    coords[j].y -= deltaY;
+                    coords[i].x += deltaX * speed.value / 100;
+                    coords[i].y += deltaY * speed.value / 100;
+                    coords[j].x -= deltaX * speed.value / 100;
+                    coords[j].y -= deltaY * speed.value / 100;
                 }
                 redraw(true)
-            }, 50)
+            }, updateFrequency)
         }
 
         // However calculating of sift down process is much faster then visualization
@@ -418,5 +450,4 @@
     generate()
 
 </script>
-</body>
 </html>
