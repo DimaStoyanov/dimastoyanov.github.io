@@ -24,9 +24,9 @@
         </li>
     </ol>
 </details>
-<canvas id="canvas" width="1280" height="400">C A N V A S</canvas>
+<canvas id="canvas" width="1280" height="350">C A N V A S</canvas>
+<canvas id="logical" width="1280" height="100">heap array</canvas>
 <canvas id="legend" width="1280" height="120">legend</canvas>
-<canvas id="minvalue" width="1280" height="100">sorted array</canvas>
 <div>
     <label for="vertexNum">Vertex number: </label><input id="vertexNum" value="31">
     <button id="generate">Generate</button>
@@ -40,28 +40,41 @@
     <button id="finish">Finish visualisation</button>
 
 </div>
+<div>
+    <label for="heapset">Set a heap (separating elements with commas)</label><input id="heapset">
+    <button id="drawheap">Draw a given heap</button>
+</div>
 </body>
 <script lang="text/javascript">
 
     // Main canvas, where heap is drawn
     var canvas = document.getElementById("canvas");
     var ctx = canvas.getContext('2d');
-    // Canvas for text "Extracted values..."
-    var text = document.getElementById("minvalue");
-    var textCtx = text.getContext('2d');
     // Canvas for map legend
     var legend = document.getElementById("legend");
     var legendCtx = legend.getContext('2d');
+    // Canvas for logical representation and extracted values
+    var logical = document.getElementById("logical");
+    var logicalCtx = logical.getContext('2d');
     // Button that start visualisation
     var startButton = document.getElementById("start");
-    textCtx.font = "20px Georgia";
     legendCtx.font = "20px Arial";
+    logicalCtx.font = "20px Georgia";
+    // regulator of speed
     var speed = document.getElementById("speed");
 
-
+    // max difference between son's and parent value (for generating heap)
+    var maxDiffValues = 10;
+    // Delay, during which canvas is no redrawing
     var updateFrequency = 20;
+    // How many steps will be in one animation with 1x speed
     var parts = 100;
+    // Animation will be end if distance between circles are lower then epsilon
     var epsilon = 10;
+    // Delay between two animations
+    var timeBetweenSteps = 500;
+    // Max size of heap
+    var maxN = 31;
 
     // Array of values, that heap contains
     var heap = [];
@@ -91,9 +104,11 @@
         a[j] = temp;
     }
 
-    // Check if first index can be father of second and contrariwise
-    function isNeighbours(i, j) {
-        return (~~(i / 2) === j) || (~~(j / 2) === i);
+    function cloneMap(m) {
+        var newMap = {};
+        for (var i in m)
+            newMap[i] = m[i];
+        return newMap
     }
 
     // Calculate distance between two point
@@ -117,13 +132,8 @@
         ctx.font = "20px Georgia";
 
         // Draw vertex with/within border
-        function drawCircle(ctx, x, y, value, color, border) {
-            border = border | 0;
+        function drawCircle(ctx, x, y, value, color) {
 
-            ctx.strokeStyle = "blue";
-            ctx.beginPath();
-            ctx.arc(x, y, circleRadius + border, 0, 2 * Math.PI, false);
-            ctx.stroke();
 
             ctx.fillStyle = color;
             ctx.beginPath();
@@ -169,11 +179,14 @@
             }
         }
 
+        function getValue(i) {
+            return swapped.length === 0 ? heap[i] : swapped[0].index === i || swapped[1].index === i ? "" : heap[i]
+        }
+
         // If we redraw canvas, coordinates have already been calculated
         function drawVertex() {
             for (var i = 1; i < heap.length; i++) {
-                drawCircle(ctx, coords[i].x, coords[i].y, heap[i], getColor(heap[i], heap[~~(i / 2)]),
-                    swapped.indexOf(i) === -1 ? 0 : 5)
+                drawCircle(ctx, coords[i].x, coords[i].y, getValue(i), getColor(heap[i], heap[~~(i / 2)]));
             }
         }
 
@@ -193,21 +206,14 @@
 
             // Here are a few conditions for the edges to swap at the beginning of the animation
             for (var i = heap.length - 1; i > 1; i--) {
-                var parent = ~~(i / 2);
-                if (swapped.length === 0 || isNeighbours(swapped[0], swapped[1])) {
-                    // Conditions for classic sift down
-                    if (swapped.indexOf(i) === -1 && swapped.indexOf(parent) !== -1)
-                        parent = parent === swapped[0] ? swapped[1] : swapped[0];
-                } else {
-                    // Conditions for swapping  not adjacent vertices
-                    if (i === 1) {
-                        parent = swapped[0] === i ? swapped[1] : swapped[0];
-                    } else {
-                        parent = parent === swapped[0] ?
-                            swapped[1] : parent === swapped[1] ? swapped[0] : parent;
-                    }
-                }
-                drawArrow(coords[i], coords[parent]);
+                drawArrow(coords[i], coords[~~(i / 2)]);
+            }
+        }
+
+
+        function drawSwappedVertex() {
+            for (var i = 0; i < swapped.length; i++) {
+                drawCircle(ctx, swapped[i].coords.x, swapped[i].coords.y, heap[swapped[i].index], "grey")
             }
         }
 
@@ -225,16 +231,30 @@
             legendCtx.fillText("If current vertex is equal", 450, 90);
             legendCtx.fillText("to parent vertex", 450, 110);
 
-            drawCircle(legendCtx, 800, 35, "", "red");
-            legendCtx.fillText("If current vertex is lower", 700, 90);
-            legendCtx.fillText("than parent vertex", 700, 110);
+            drawCircle(legendCtx, 820, 35, "", "red");
+            legendCtx.fillText("If current vertex is lower", 720, 90);
+            legendCtx.fillText("than parent vertex", 720, 110);
+
+            drawCircle(legendCtx, 1090, 35, "", "grey");
+            legendCtx.fillText("If these vertex are", 990, 90);
+            legendCtx.fillText("swapping right now", 990, 110);
 
 
         }
 
+        function drawLogical() {
+            clearCanvas(logicalCtx, logical);
+            logicalCtx.fillStyle = "black";
+            logicalCtx.fillText("Logical heap representation: " + heap.slice(1), 0, 50);
+            logicalCtx.fillText("Extracted values: " + extractedValues, 0, 70);
+        }
+
+        timeBetweenSteps = 50000 / speed.value;
         if (!animate) calculateAndDrawVertex(); else  drawVertex();
         drawArrows();
-        drawScheme();
+        drawSwappedVertex();
+        drawLogical();
+        drawScheme()
     }
 
     function redraw(animate) {
@@ -249,19 +269,18 @@
         // Heap with size bigger than 31 is hard to represent
         // Because then it is necessary to reduce the radius of the circles and it will become unreadable
         var n = Math.abs(parseInt(document.getElementById("vertexNum").value));
-        if (isNaN(n) || n > 31 || n === 0) {
+        if (isNaN(n) || n > maxN || n === 0) {
             n = 31;
         }
         document.getElementById("vertexNum").value = n;
         function nextInt() {
-            return Math.random() * 10 | 0
+            return Math.random() * maxDiffValues | 0
         }
 
         heap = [null];
         for (var i = 1; i <= n; i++) {
             heap[i] = heap[~~(i / 2)] + nextInt();
         }
-        clearCanvas(textCtx, text);
         redraw(false)
     }
 
@@ -270,15 +289,7 @@
     // And set flag finished, which affects the operation of function processOrder
     function finishVisualisation() {
         if (!startedExtract) return;
-        if (moving) {
-            nextStep = true;
-            var timer = setInterval(function () {
-                if (!nextStep) {
-                    finished = true;
-                    clearInterval(timer);
-                }
-            }, updateFrequency);
-        } else finished = true;
+        finished = true;
     }
 
     // If right now occurs animation, finish it immediately
@@ -303,8 +314,8 @@
     var paused = false,
         nextStep = false,
         finished = false;
-    // Start visualization
-    startButton.addEventListener("click", function () {
+
+    function start() {
         if (paused) {
             startButton.firstChild.data = "Pause visualisation";
             paused = false;
@@ -321,44 +332,35 @@
         startedExtract = true;
         startButton.firstChild.data = "Pause visualisation";
         var order = [];
-        var dateStopped = Date.now() - 500;
+        var dateStopped = Date.now() - timeBetweenSteps;
 
         // Animate swap of vertices
-        function swapVertices(i, j, deleteV) {
-            var p1 = {x: coords[i].x, y: coords[i].y};
-            var p2 = {x: coords[j].x, y: coords[j].y};
-            var deltaX = (p2.x - p1.x) / parts;
-            var deltaY = (p2.y - p1.y) / parts;
+        function swapVertices(i, j) {
+            var deltaX = (coords[j].x - coords[i].x) / parts;
+            var deltaY = (coords[j].y - coords[i].y) / parts;
+            swapped = [{coords: cloneMap(coords[i]), index: i}, {coords: cloneMap(coords[j]), index: j}];
             moving = true;
-            swapped = [i, j];
 
             var timer = setInterval(function () {
-                if (distance(coords[i], p2) < epsilon) {
-                    if (nextStep) {
+
+                if (distance(swapped[0].coords, coords[j]) < epsilon || finished) {
+
+                    if (!finished && nextStep) {
                         nextStep = false;
                         paused = true;
                         startButton.firstChild.data = "Resume visualisation";
                     }
-                    coords[i] = p1;
-                    coords[j] = p2;
                     swap(heap, i, j);
                     swapped = [];
-                    if (deleteV) {
-                        clearCanvas(textCtx, text);
-                        textCtx.fillStyle = "black";
-                        extractedValues.push(heap.pop());
-                        textCtx.fillText("Extracted values: " + extractedValues, 0, 50);
-                        coords.pop();
-                    }
                     moving = false;
                     dateStopped = Date.now();
                     clearInterval(timer)
                 } else {
                     //At each step, we increase the coordinates by a uniform value for smooth animation
-                    coords[i].x += deltaX * speed.value / 100;
-                    coords[i].y += deltaY * speed.value / 100;
-                    coords[j].x -= deltaX * speed.value / 100;
-                    coords[j].y -= deltaY * speed.value / 100;
+                    swapped[0].coords.x += deltaX * speed.value / 100;
+                    swapped[0].coords.y += deltaY * speed.value / 100;
+                    swapped[1].coords.x -= deltaX * speed.value / 100;
+                    swapped[1].coords.y -= deltaY * speed.value / 100;
                 }
                 redraw(true)
             }, updateFrequency)
@@ -368,29 +370,49 @@
         // this function will wait the end of current animation, wait 0.5 sec and start next animation
         function processOrder() {
             var timer = setInterval(function () {
-                if (finished) {
-                    paused = false;
-                    finished = false;
-                    startedExtract = false;
-                    for (var i = 0; i < order.length; i++) {
-                        swap(heap, order[i].i, order[i].j);
+                    if (finished) {
+                        if (moving) return;
+                        paused = false;
+                        finished = false;
+                        startedExtract = false;
+                        for (var i = 0; i < order.length; i++) {
+                            if (order[i].type === "delete") {
+                                extractedValues.push(heap.pop());
+                                coords.pop()
+                            } else
+                                swap(heap, order[i].i, order[i].j);
+                        }
+                        order = [];
+                        redraw(true);
                     }
-                    order = [];
-                    redraw(true);
-                }
-                if (!moving && paused && nextStep || (!moving && !paused && Date.now() - dateStopped >= 500)) {
-                    nextStep = false;
+                    if (!moving && paused && nextStep ||
+                        (!moving && !paused && Date.now() - dateStopped >= timeBetweenSteps)) {
+                        if (paused) nextStep = false;
                         if (order.length !== 0) {
                             var indices = order.shift();
-                            swapVertices(indices.i, indices.j, indices.deleteV);
+                            if (indices.type === "delete") {
+                                extractedValues.push(heap.pop());
+                                coords.pop();
+                                dateStopped = Date.now();
+                                redraw(true);
+                            } else {
+                                swapVertices(indices.i, indices.j);
+                                if (order.length === 0 && paused) {
+                                    startedExtract = false;
+                                    paused = false;
+                                    startButton.firstChild.data = "Start visualisation";
+                                    clearInterval(timer);
+                                }
+                            }
                         } else {
                             startedExtract = false;
+                            paused = false;
                             startButton.firstChild.data = "Start visualisation";
                             clearInterval(timer);
                         }
                     }
                 }
-            )
+                , updateFrequency)
         }
 
         processOrder();
@@ -406,7 +428,8 @@
             swap(H, 1, H.length - 1);
             H.pop();
             // Visualize it
-            order.push({i: i, j: heap.length - 1, deleteV: true});
+            order.push({i: i, j: heap.length - 1, type: "swap"});
+            order.push({i: i, j: heap.length - 1, type: "delete"});
 
             while (i < H.length) {
                 // If both sons are exist
@@ -415,7 +438,7 @@
                     if (H[i] > Math.min(H[i * 2], H[i * 2 + 1])) {
                         // Swap with min son
                         var index = H[i * 2] < H[i * 2 + 1] ? i * 2 : i * 2 + 1;
-                        order.push({i: i, j: index, deleteV: false});
+                        order.push({i: i, j: index, type: "swap"});
                         swap(H, i, index);
                         i = index;
                         // otherwise heap properties are restored
@@ -423,7 +446,7 @@
                 } else {
                     // If there are only one son and him value is lower than current, swap
                     if (i * 2 < H.length && H[i * 2] < H[i]) {
-                        order.push({i: i, j: i * 2});
+                        order.push({i: i, j: i * 2, type: "swap"});
                         swap(H, i, i * 2);
                         i *= 2;
                         // otherwise heap is balanced
@@ -435,16 +458,40 @@
 
         processOrder();
         siftDown();
+    }
 
-    });
+    // Start visualization
+    startButton.addEventListener("click", start);
 
     document.getElementById("nextStep").addEventListener("click", function () {
         nextStep = true;
+        if (!startedExtract) start()
     });
 
 
-    document.getElementById("finish").addEventListener("click", function () {
-        finishVisualisation();
+    document.getElementById("finish").addEventListener("click", finishVisualisation);
+
+    // Parse input and draw specified heap
+    // If data is incorrect or heap is unbalanced
+    // Alert about error
+    document.getElementById("drawheap").addEventListener("click", function () {
+        var str = document.getElementById("heapset").value.split(",");
+        var num, H = [null];
+
+        for (var i = 0; i < str.length; i++) {
+            num = parseInt(str[i]);
+            if (isNaN(num)) {
+                alert("Incorrect value " + str[i]);
+                return
+            }
+            if (i !== 0 && num < H[~~((i + 1) / 2)]) {
+                alert("Heap is not balanced!");
+                return;
+            }
+            H[i + 1] = num;
+        }
+        heap = H;
+        redraw(false);
     });
 
     generate()
