@@ -38,6 +38,7 @@
     </label>
     <button id="nextStep">Next step</button>
     <button id="finish">Finish visualisation</button>
+    <button id="priority">Change priority</button>
 
 </div>
 <div>
@@ -63,6 +64,8 @@
     // regulator of speed
     var speed = document.getElementById("speed");
 
+    // If first element in the heap is the lowest element
+    var minPriority = true;
     // max difference between son's and parent value (for generating heap)
     var maxDiffValues = 10;
     // Delay, during which canvas is no redrawing
@@ -145,7 +148,9 @@
         }
 
         function getColor(son, parent) {
-            return parent === null ? "yellow" : son > parent ? "#98FB98" : son === parent ? "yellow" : "red"
+            return parent === null ? "yellow" :
+                son > parent && minPriority || son < parent && !minPriority ? "#98FB98"
+                    : son === parent ? "yellow" : "red"
         }
 
         /** For the 1st draw we need to calculate coordinates of vertices
@@ -224,7 +229,7 @@
 
 
             drawCircle(legendCtx, 270, 35, "", "#98FB98");
-            legendCtx.fillText("If current vertex is greater", 170, 90);
+            legendCtx.fillText("If current vertex is " + (minPriority ? "greater" : "lower"), 170, 90);
             legendCtx.fillText("than parent vertex", 170, 110);
 
             drawCircle(legendCtx, 550, 35, "", "yellow");
@@ -232,7 +237,7 @@
             legendCtx.fillText("to parent vertex", 450, 110);
 
             drawCircle(legendCtx, 820, 35, "", "red");
-            legendCtx.fillText("If current vertex is lower", 720, 90);
+            legendCtx.fillText("If current vertex is " + (minPriority ? "lower" : "greater"), 720, 90);
             legendCtx.fillText("than parent vertex", 720, 110);
 
             drawCircle(legendCtx, 1090, 35, "", "grey");
@@ -277,9 +282,9 @@
             return Math.random() * maxDiffValues | 0
         }
 
-        heap = [null];
-        for (var i = 1; i <= n; i++) {
-            heap[i] = heap[~~(i / 2)] + nextInt();
+        heap = [null, minPriority ? nextInt() : nextInt() + 9 * maxDiffValues];
+        for (var i = 2; i <= n; i++) {
+            heap[i] = minPriority ? heap[~~(i / 2)] + nextInt() : heap[~~(i / 2)] - nextInt();
         }
         redraw(false)
     }
@@ -435,17 +440,20 @@
                 // If both sons are exist
                 if (i * 2 + 1 < H.length) {
                     // And al least one son is lower then current vertex
-                    if (H[i] > Math.min(H[i * 2], H[i * 2 + 1])) {
+                    var min = Math.min(H[i * 2], H[i * 2 + 1]);
+                    var max = Math.max(H[i * 2], H[i * 2 + 1]);
+                    if (minPriority && H[i] > min || !minPriority && H[i] < max) {
                         // Swap with min son
-                        var index = H[i * 2] < H[i * 2 + 1] ? i * 2 : i * 2 + 1;
+                        var index = minPriority ? H[i * 2] < H[i * 2 + 1] ? i * 2 : i * 2 + 1
+                            : H[i * 2] > H[i * 2 + 1] ? i * 2 : i * 2 + 1;
                         order.push({i: i, j: index, type: "swap"});
                         swap(H, i, index);
                         i = index;
                         // otherwise heap properties are restored
-                    } else break;
+                    } else break
                 } else {
                     // If there are only one son and him value is lower than current, swap
-                    if (i * 2 < H.length && H[i * 2] < H[i]) {
+                    if (i * 2 < H.length && (minPriority && H[i * 2] < H[i] || !minPriority && H[i * 2] > H[i])) {
                         order.push({i: i, j: i * 2, type: "swap"});
                         swap(H, i, i * 2);
                         i *= 2;
@@ -475,23 +483,67 @@
     // If data is incorrect or heap is unbalanced
     // Alert about error
     document.getElementById("drawheap").addEventListener("click", function () {
-        var str = document.getElementById("heapset").value.split(",");
-        var num, H = [null];
 
-        for (var i = 0; i < str.length; i++) {
-            num = parseInt(str[i]);
-            if (isNaN(num)) {
-                alert("Incorrect value " + str[i]);
-                return
+        var num, H = [null];
+        var str = document.getElementById("heapset").value.split(",");
+
+        function parse(min) {
+            for (var i = 0; i < str.length; i++) {
+                num = parseInt(str[i]);
+                if (isNaN(num)) {
+                    alert("Incorrect value " + str[i]);
+                    return "error"
+                }
+                if (i !== 0 && (min && num <= H[~~((i + 1) / 2)] || !min && num >= H[~~((i + 1) / 2)])) {
+                    return false
+                }
+                H[i + 1] = num;
             }
-            if (i !== 0 && num < H[~~((i + 1) / 2)]) {
-                alert("Heap is not balanced!");
+            return true
+        }
+
+
+        function parseAndDraw() {
+            if (parse(true) === "error")
+                return;
+            else if (parse(true))
+                minPriority = true;
+            else if (parse(false))
+                minPriority = false;
+            else {
+                alert("Heap is not balanced");
                 return;
             }
-            H[i + 1] = num;
+            heap = H;
+            coords = [];
+            redraw(false);
+
         }
-        heap = H;
-        redraw(false);
+
+
+        if (startedExtract) {
+            finishVisualisation();
+            var timer = setInterval(function () {
+                if (!startedExtract) {
+                    extractedValues = [];
+                    clearInterval(timer);
+                    parseAndDraw()
+                }
+            }, updateFrequency)
+        } else {
+            extractedValues = [];
+            parseAndDraw();
+        }
+
+    });
+
+    document.getElementById("priority").addEventListener("click", function () {
+        if (startedExtract) {
+            alert("Can't change priority now");
+            return
+        }
+        minPriority = !minPriority;
+        generate();
     });
 
     generate()
