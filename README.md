@@ -1,5 +1,6 @@
+[Home](https://dimastoyanov.github.io)
 # My repositories
-[Site](https://dimastoyanov.github.io)
+
 
 ### [Visualisation of extracting minimum value at binary heap](visualizer.html)
 ### [Visualisation of bypassing all cells by brute force](https://dimastoyanov.github.io/Twitch-Chat)
